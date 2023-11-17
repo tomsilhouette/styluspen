@@ -1,8 +1,9 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useCallback } from 'react';
 
 function CanvasComponent() {
   const canvasRef = useRef(null);
   const contextRef = useRef(null);
+  let isDrawing = false; // Declare isDrawing here
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -38,42 +39,87 @@ function CanvasComponent() {
     context.fillRect(0, 0, canvas.width, canvas.height);
   };
 
-  const handleTouchStart = (e) => {
+  const startDrawing = useCallback((e) => {
+    isDrawing = true;
+    const x = e.clientX - canvasRef.current.offsetLeft;
+    const y = e.clientY - canvasRef.current.offsetTop;
+
+    contextRef.current.beginPath();
+    contextRef.current.moveTo(x, y);
+  }, []);
+
+  const draw = useCallback((e) => {
+    if (!isDrawing) return;
+    const x = e.clientX - canvasRef.current.offsetLeft;
+    const y = e.clientY - canvasRef.current.offsetTop;
+
+    contextRef.current.lineTo(x, y);
+    contextRef.current.stroke();
+  }, []);
+
+  const stopDrawing = useCallback(() => {
+    isDrawing = false;
+  }, []);
+
+  useEffect(() => {
     const canvas = canvasRef.current;
-    const context = canvas.getContext('2d');
 
-    const touch = e.touches[0];
-    const x = touch.clientX - canvas.offsetLeft;
-    const y = touch.clientY - canvas.offsetTop;
+    canvas.addEventListener('mousedown', startDrawing);
+    canvas.addEventListener('mousemove', draw);
+    canvas.addEventListener('mouseup', stopDrawing);
+    canvas.addEventListener('mouseout', stopDrawing);
 
-    context.beginPath();
-    context.moveTo(x, y);
-  };
+    // Touch events
+    canvas.addEventListener('touchstart', (e) => {
+      const touch = e.touches[0];
+      const x = touch.clientX - canvas.offsetLeft;
+      const y = touch.clientY - canvas.offsetTop;
 
-  const handleTouchMove = (e) => {
-    const canvas = canvasRef.current;
-    const context = canvas.getContext('2d');
+      contextRef.current.beginPath();
+      contextRef.current.moveTo(x, y);
+    });
 
-    const touch = e.touches[0];
-    const x = touch.clientX - canvas.offsetLeft;
-    const y = touch.clientY - canvas.offsetTop;
+    canvas.addEventListener('touchmove', (e) => {
+      const touch = e.touches[0];
+      const x = touch.clientX - canvas.offsetLeft;
+      const y = touch.clientY - canvas.offsetTop;
 
-    context.lineTo(x, y);
-    context.stroke();
-  };
+      contextRef.current.lineTo(x, y);
+      contextRef.current.stroke();
+    });
 
-  const handleTouchEnd = () => {
-    // Additional touch-end logic if needed
-  };
+    canvas.addEventListener('touchend', stopDrawing);
 
-  return (
-    <canvas
-      ref={canvasRef}
-      onTouchStart={handleTouchStart}
-      onTouchMove={handleTouchMove}
-      onTouchEnd={handleTouchEnd}
-    />
-  );
+    return () => {
+      canvas.removeEventListener('mousedown', startDrawing);
+      canvas.removeEventListener('mousemove', draw);
+      canvas.removeEventListener('mouseup', stopDrawing);
+      canvas.removeEventListener('mouseout', stopDrawing);
+
+      // Touch events
+      canvas.removeEventListener('touchstart', (e) => {
+        const touch = e.touches[0];
+        const x = touch.clientX - canvas.offsetLeft;
+        const y = touch.clientY - canvas.offsetTop;
+
+        contextRef.current.beginPath();
+        contextRef.current.moveTo(x, y);
+      });
+
+      canvas.removeEventListener('touchmove', (e) => {
+        const touch = e.touches[0];
+        const x = touch.clientX - canvas.offsetLeft;
+        const y = touch.clientY - canvas.offsetTop;
+
+        contextRef.current.lineTo(x, y);
+        contextRef.current.stroke();
+      });
+
+      canvas.removeEventListener('touchend', stopDrawing);
+    };
+  }, [startDrawing, draw, stopDrawing]);
+
+  return <canvas ref={canvasRef} />;
 }
 
 export default CanvasComponent;
